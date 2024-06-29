@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<snapshot>
+
+  <type>single</type>
+
+  <num>1</num>
+
+  <date>2024-06-29 07:53:43</date>
+
+  <description>First Root Filesystem</description>
+
+  <cleanup>number</cleanup>
+
+  <userdata>
+
+    <key>important</key>
+
+    <value>yes</value>
+
+  </userdata>
+
+</snapshot>
