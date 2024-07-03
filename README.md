@@ -1,14 +1,30 @@
-# "Unbreakable" Arch (mostly) Unattended Installer
+# Arch Installer on OpenSUSE-like BTRFS subvolume layout
+---
+### With GRUB configured to make snapshots available to boot from
 
 Thanks to Tommy Tran for creating the original interactive version of this script:  https://github.com/TommyTran732/Arch-Setup-Script
 
-I have pared his work down considerably for my own needs/interests, and tightened up the syntax in a few places requiring (mainly) better string substitution.
+I have pared his work down considerably for my own needs/interests, and while I might have tightened up the syntax in a few places requiring some hefty string substitution, I mostly just hacked a ton of options and features out of it, and made it so hopefully it wouldn't ask me any questions.
 
-I removed LUKS. In theory, it's really cool, but In practice, I'm probably ~10 times more likely to lose my credentials, or experience an unrecoverable configuration issue that locks me out indefinitely, than I am to have actors of malintent attempt to access my files. Priorities and circumstances, right? 
+It's not quite there yet.  Turns out, when you are configuring ~18 subvolumes, each with different mount points, it behoves you to slow the process down enough to make sure each stage completes fully - no fun waiting for the script to get all the way through, only to find out something went wrong way back in the beginning!
 
-Moreover, I've removed links to any additional scripts nested in the original, as it was more important to me personally to engage in understanding the primary functions of the process (some rather complicated, like the subvolume layout, grub modifications, snapper policies, and setting a snapshot as the default mount btrfs subvolume) than implementing ancillary features (even hardening).
+So I've created pause points, ala "training wheels", that stop and ask you if you're paying attention during some of the most significant areas where an incorrect setting will cascade failure the rest of the way through.  There's a good chance the script won't be configured in a way that it'll remove all your partitions, logical volumes, will miss a subvolume you actually wanted, or won't be configured to bind-mount that volume you wanted instead of a subvol.
 
-Therefore, this rendition does not download any additional scripts to run during setup.  It does run Pacman and download two AUR packages from `chaotic-aur`, but they are only to avoid compiling software during the setup process.  The two 3rd-party packages are `paru` and `snap-pac-grub` (I may remove latter due to conflict - still investigating).  
+Gut check aside:  At the very least, I suggest mounting an ext4 or xfs volume to /var/lib/flatpak, the performance on btrfs is atrocious - if you want to keep them in user folder, there's ~/.local/share/flatpak - docker, containerd, podman (/var/lib/containers) all have the same problem as flatpak (they use a fuse filesystem) and on CoW FS it just sucks - even with CoW turned off (at least, that's how I felt about it.  I will build this into the script eventually, but before that happens, look into doing it for yourself.  
+
+The most logical subvols to use a separate LV or partition for are: 
+`/var/lib/{containerd,containers,docker,flatpak,lxc,machines,libvirt}` - 
+and about `@var_lib_libvirt_images subvol`, you might as well just do the whole `libvirt` dir, since I wouldn't want to have to roll back my VM settings without my images being rolled back, or vice versa, just because a package installation caused a boot error - right now only the `libvirt/images` dir is mounted `nodatacow`, so I'll need to fix that...
+
+The good thing about the new "non-interactive" layout is I put all the possible variables at the top in both scripts - I broke the script out into 2 chunks, since it's so incredibly long as a failsafe against going all the way through while it's misconfigured - so be sure to check the variables in both `part1.sh` and `part2.sh` - definitely recommend copying and pasting one to the other.  I don't want to put a lot of energy into re-writing it in bash, since I am probably going to port the codebase to Python so it's not so finicky (IMO bash is a little too unpredictable for a script that's even semi-complicated). 
+
+What else... let's see...
+
+I removed LUKS. In theory, it's really cool and helpful. In practice, I'm more afraid I'm going to lose my credentials than I am of someone trying to compromise my system.  Or possibly experience some unrecoverable configuration issue that locks me out indefinitely - it IS Arch Linux, after all, right?  
+
+Perhaps more substantially, I've removed links to any additional scripts nested in the original, as none of the features involved were important, and it seemed like more of a security risk than not setting up LUKS, plus I wanted to focus on the primary functions of the bootstrapping process, and it's definitely a lot more complicated than your average non-subvol layout.  Configuring the grub modifications takes a bit getting used to.  The snapper policies are fascinating, especially the role the default subvol plays in `/etc/fstab` for booting a snapshot, and implementing ancillary features (even hardening or NetworkManager) seemed interruptive for the time being.
+
+Therefore, this rendition does not download any additional scripts to run during setup, except for Pacman long enough to download two AUR packages that are pre-compiled on `chaotic-aur`. They're mainly to avoid compiling software during the bootstrapping process.  The two 3rd-party packages are `paru` and `snap-pac-grub` (check out the latter and see if you think it might conflict with the snapshot default subvol mount in fstab - I'm still on the fence about it, myself).  
 
 Chaotic AUR information is here:  https://github.com/chaotic-aur
 (it's a repository of curated and pre-compiled AUR packages - pretty awesome)
@@ -54,7 +70,7 @@ More things this pared down version I worked over _does not have_:
 ```
 	    GRUB_CMDLINE_LINUX="rootflags=subvol=${rootsubvol} ${GRUB_CMDLINE_LINUX}"
 ```
-As it will prevent being able to configure the snapshot from which you boot (bad)
+As it will prevent snapper from configuring which snapshot you'll boot from (very bad)
 
 
 -- That's enough info from me for now. Don't forget there are parts 1 and 2, and there are some sanity checks while it goes through the process - stick around for questions it asks, and to hit any key to continue if you're satisfied everything is up to snuff.
